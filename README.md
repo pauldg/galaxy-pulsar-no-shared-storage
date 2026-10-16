@@ -1,42 +1,53 @@
 # Containerized Pulsar for Galaxy development
 
-Galaxy runs from a checkout on the host. Pulsar runs in a container that sees the checkout (read-only, as `galaxy_home`) but not Galaxy's object store, like a Pulsar on another machine. Destination: REST, `remote_metadata: true`, `metadata_strategy: extended` (`galaxy/job_conf.yml`).
+Connects a Galaxy checkout you already run to a Pulsar in Docker that cannot see Galaxy's object store, as if Pulsar ran on another machine. Made to test `remote_metadata: true` with `metadata_strategy: extended` on Pulsar (`job_conf.yml`, REST runner).
 
-The tokens and passwords (`dev-token`, `dev-admin-key`, `devpassword`) are local placeholders; both services listen on localhost only.
+The Pulsar token (`dev-token`) is a local placeholder; Pulsar listens on localhost only.
 
-Needs Docker, `jq`, and a Galaxy checkout with its venv (`./scripts/common_startup.sh --skip-client-build`).
+## 1. Start Pulsar
 
 ```
-export GALAXY_ROOT=/path/to/galaxy          # checkout to test
-export REPRO=$PWD                           # this directory
-sed -e "s#@REPRO@#$REPRO#g" -e "s#@GALAXY_ROOT@#$GALAXY_ROOT#g" galaxy/galaxy.yml.in > galaxy/galaxy.yml
-
 docker build -t pulsar-dev pulsar/
 docker run -d --name pulsar-dev -p 127.0.0.1:8913:8913 \
-    -v "$GALAXY_ROOT":/galaxy:ro -v pulsar-dev-venv:/venv-galaxy pulsar-dev
-docker logs -f pulsar-dev                   # first start builds /venv-galaxy, then serves on 8913
-
-(cd "$GALAXY_ROOT" && GALAXY_CONFIG_FILE=$REPRO/galaxy/galaxy.yml GALAXY_SKIP_CLIENT_BUILD=1 ./run.sh)
-
-./test-plain.sh
+    -v /path/to/galaxy:/galaxy:ro -v pulsar-dev-venv:/venv-galaxy pulsar-dev
+docker logs -f pulsar-dev
 ```
 
-`test-plain.sh` uploads a text file (local runner), runs `cat1` on Pulsar and prints the output's size in Galaxy, the file in Galaxy's object store, and any copy in the container.
+The checkout is mounted read-only as `galaxy_home`, for the remote metadata step. The first start builds a venv from the checkout's `pinned-requirements.txt`. Mount it at `/galaxy`, not at its own path, so Galaxy's object store path does not exist in the container.
 
-For Crypt4GH-protected jobs (galaxyproject/galaxy#23986), also set `crypt4gh_enabled: true` in `galaxy/galaxy.yml.in`.
+## 2. Point Galaxy at it
+
+From the checkout, without changing its config:
+
+```
+GALAXY_CONFIG_JOB_CONFIG_FILE=/path/to/this/repo/job_conf.yml \
+GALAXY_CONFIG_METADATA_STRATEGY=extended \
+GALAXY_CONFIG_OBJECT_STORE_STORE_BY=uuid \
+./run.sh
+```
+
+Uploads run on the local runner, everything else on Pulsar. `object_store_store_by: uuid` is required by extended metadata; on an existing database with datasets stored by id, use a fresh `database/` instead.
+
+## 3. Submit a job
+
+Upload a small text file and run "Concatenate datasets" on it. Take the output's UUID from its dataset details, then from the checkout:
+
+```
+find database/objects -name "dataset_<uuid>.dat" -exec ls -l {} \;
+docker exec pulsar-dev find / -xdev -name "dataset_<uuid>.dat" -exec ls -l {} \;
+```
 
 ## Result
 
-Reproduces on Galaxy `dev` at 5bf7abf5e3 and on galaxyproject/galaxy#23986 at 9f067a0767, Pulsar 0.15.16:
-
 ```
-cat1 (pulsar): ok
-Galaxy says: state=ok file_size=27 uuid=2436a752-...
-Galaxy object store: .../galaxy-data/objects/2/4/3/dataset_2436a752-....dat (0 bytes)
-Pulsar container:
--rw-r--r--. 1 root root 27 ... .../galaxy-data/objects/2/4/3/dataset_2436a752-....dat
+$ find database/objects -name "dataset_03d0df09-144c-464c-af93-9d1738c9367c.dat" -exec ls -l {} \;
+-rw-r--r--. 1 rocky rocky 0 Oct 16 18:29 database/objects/0/3/d/dataset_03d0df09-144c-464c-af93-9d1738c9367c.dat
+$ docker exec pulsar-dev find / -xdev -name "dataset_03d0df09-144c-464c-af93-9d1738c9367c.dat" -exec ls -l {} \;
+-rw-r--r--. 1 root root 12 Oct 16 16:29 /path/to/galaxy/database/objects/0/3/d/dataset_03d0df09-144c-464c-af93-9d1738c9367c.dat
 ```
 
-The job and dataset are `ok` with the right size, but the file in Galaxy's object store is empty: the remote metadata step wrote the output to the object store path inside the container. Downloading the dataset then fails with `h11._util.LocalProtocolError: Too little data for declared Content-Length`.
+On Galaxy `dev` at 5bf7abf5e3 and on galaxyproject/galaxy#23986 at 9f067a0767, with Pulsar 0.15.16, the job and dataset are `ok` with the right size, but the file in `database/objects` is 0 bytes and the output is inside the container, at Galaxy's object store path. The remote metadata step writes outputs to the object store from the Pulsar side. Downloading the dataset fails with `h11._util.LocalProtocolError: Too little data for declared Content-Length`.
 
-After changing Galaxy code: restart Galaxy, and `docker restart pulsar-dev` (the checkout is mounted, so no rebuild). After changing Galaxy's dependencies: `docker volume rm pulsar-dev-venv` and recreate the container.
+## After changing code
+
+Restart Galaxy and `docker restart pulsar-dev`; the checkout is mounted, so no rebuild. After changing Galaxy's dependencies: `docker rm -f pulsar-dev && docker volume rm pulsar-dev-venv`, then start it again.
