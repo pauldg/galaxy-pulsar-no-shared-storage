@@ -46,7 +46,7 @@ $ docker exec pulsar-dev find / -xdev -name "dataset_03d0df09-144c-464c-af93-9d1
 -rw-r--r--. 1 root root 12 Oct 16 16:29 /path/to/galaxy/database/objects/0/3/d/dataset_03d0df09-144c-464c-af93-9d1738c9367c.dat
 ```
 
-On Galaxy `dev` at 5bf7abf5e3 and on galaxyproject/galaxy#23986 at 9f067a0767, with Pulsar 0.15.16, the job and dataset are `ok` with the right size, but the file in `database/objects` is 0 bytes and the output is inside the container, at Galaxy's object store path. The remote metadata step writes outputs to the object store from the Pulsar side. Downloading the dataset fails with `h11._util.LocalProtocolError: Too little data for declared Content-Length`.
+On Galaxy `dev` at 5bf7abf5e3 and on Add Crypt4GH-encrypted datasets with server-managed compute grants ([galaxy#23986](https://github.com/galaxyproject/galaxy/pull/23986)) at 9f067a0767, with Pulsar 0.15.16, the job and dataset are `ok` with the right size, but the file in `database/objects` is 0 bytes and the output is inside the container, at Galaxy's object store path. The remote metadata step writes outputs to the object store from the Pulsar side. Downloading the dataset fails with `h11._util.LocalProtocolError: Too little data for declared Content-Length`.
 
 ## After changing code
 
