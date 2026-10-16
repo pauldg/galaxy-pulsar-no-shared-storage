@@ -1,4 +1,4 @@
-# Pulsar without shared storage, for Galaxy development
+# Containerized Pulsar for Galaxy development
 
 Galaxy runs from a checkout on the host. Pulsar runs in a container that sees the checkout (read-only, as `galaxy_home`) but not Galaxy's object store, like a Pulsar on another machine. Destination: REST, `remote_metadata: true`, `metadata_strategy: extended` (`galaxy/job_conf.yml`).
 
