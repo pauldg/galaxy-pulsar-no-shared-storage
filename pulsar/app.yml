@@ -1,0 +1,10 @@
+private_token: dev-token
+staging_directory: /pulsar/staging
+persistence_directory: /pulsar/persisted_data
+galaxy_home: /galaxy
+conda_auto_init: false
+conda_auto_install: false
+managers:
+  _default_:
+    type: queued_python
+    num_concurrent_jobs: 2

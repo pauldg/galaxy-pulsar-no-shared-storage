@@ -1,0 +1,23 @@
+runners:
+  local:
+    load: galaxy.jobs.runners.local:LocalJobRunner
+  pulsar_rest:
+    load: galaxy.jobs.runners.pulsar:PulsarRESTJobRunner
+execution:
+  default: pulsar
+  environments:
+    local:
+      runner: local
+    pulsar:
+      runner: pulsar_rest
+      url: http://localhost:8913/
+      private_token: dev-token
+      default_file_action: transfer
+      remote_metadata: true
+      rewrite_parameters: true
+      metadata_strategy: extended
+      use_remote_datatypes: false
+      remote_property_galaxy_home: /galaxy
+tools:
+  - id: __DATA_FETCH__
+    environment: local

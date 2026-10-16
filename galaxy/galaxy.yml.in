@@ -1,0 +1,18 @@
+gravity:
+  galaxy_root: @GALAXY_ROOT@
+  gunicorn:
+    bind: 127.0.0.1:8080
+  celery:
+    enable: false
+galaxy:
+  data_dir: @REPRO@/galaxy-data
+  file_path: @REPRO@/galaxy-data/objects
+  database_connection: sqlite:///@REPRO@/galaxy-data/universe.sqlite?isolation_level=IMMEDIATE
+  job_config_file: @REPRO@/galaxy/job_conf.yml
+  metadata_strategy: extended
+  object_store_store_by: uuid
+  conda_auto_init: false
+  conda_auto_install: false
+  bootstrap_admin_api_key: dev-admin-key
+  admin_users: dev@example.org
+  galaxy_infrastructure_url: http://localhost:8080

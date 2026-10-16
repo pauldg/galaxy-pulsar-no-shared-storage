@@ -1,0 +1,4 @@
+galaxy/galaxy.yml
+galaxy/integrated_tool_panel.xml
+galaxy-data*/
+*.log
